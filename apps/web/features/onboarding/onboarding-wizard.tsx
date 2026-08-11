@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, ArrowLeft, ArrowRight, Camera, Check, Dumbbell, HeartPulse, ShieldCheck, Sparkles, Target } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
@@ -104,7 +105,7 @@ export function OnboardingWizard() {
   const [title, subtitle] = stepMeta[step - 1];
   return (
     <main className="onboarding-page">
-      <aside className="onboarding-aside"><Brand /><h1>Build the system around <span className="gradient-text">your life.</span></h1><p>Nine focused steps create your first real training week. Everything can be changed later.</p><span className="pill" style={{ width: "fit-content" }}><ShieldCheck size={14} /> {progressLabel}</span></aside>
+      <aside className="onboarding-aside"><Brand /><div className="onboarding-art" aria-hidden="true"><Image src="/assets/onboarding-system.png" alt="" fill priority sizes="(max-width: 767px) 1px, 36vw" /></div><h1>Build the system around <span className="gradient-text">your life.</span></h1><p>Nine focused steps create your first real training week. Everything can be changed later.</p><span className="pill" style={{ width: "fit-content" }}><ShieldCheck size={14} /> {progressLabel}</span></aside>
       <section className="onboarding-main"><form className="onboarding-panel" onSubmit={next}>
         <div className="stepper" aria-label={`Step ${step} of 9`}>{Array.from({ length: 9 }, (_, index) => <span key={index} style={{ display: "contents" }}><i className={`step-dot ${index + 1 < step ? "done" : index + 1 === step ? "active" : ""}`} />{index < 8 && <i className={`step-line ${index + 1 < step ? "done" : ""}`} />}</span>)}</div>
         <div className="step-copy"><span className="eyebrow">Step {step} of 9</span><h1>{title}</h1><p>{subtitle}</p></div>

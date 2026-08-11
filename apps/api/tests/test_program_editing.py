@@ -88,3 +88,28 @@ def test_plan_editor_validates_ownership_duplicates_and_minimums(client: TestCli
     )
     assert invalid_range.status_code == 400
     assert invalid_range.json()["code"] == "INVALID_REP_RANGE"
+
+
+def test_athlete_can_reschedule_a_program_day_without_rewriting_the_old_version(
+    client: TestClient,
+):
+    register(client)
+    complete_onboarding(client)
+    program = client.get("/api/v1/programs/active").json()["program"]
+    day = program["days"][0]
+
+    rescheduled = client.patch(
+        f"/api/v1/programs/{program['id']}/days/{day['id']}",
+        json={
+            "title": day["title"],
+            "focus": day["focus"],
+            "scheduled_date": "2030-02-14",
+            "estimated_minutes": day["estimated_minutes"],
+        },
+    )
+
+    assert rescheduled.status_code == 200
+    active = client.get("/api/v1/programs/active").json()["program"]
+    assert active["id"] != program["id"]
+    assert active["days"][0]["scheduled_date"] == "2030-02-14"
+    assert active["rationale"][-1] == f"Customized: updated {day['title']}"

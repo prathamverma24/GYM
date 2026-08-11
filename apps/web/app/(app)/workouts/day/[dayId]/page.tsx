@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Clock3, History, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CalendarDays, Clock3, History, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -88,9 +88,9 @@ export default function WorkoutDayPage() {
     onSuccess: finishEdit,
   });
   const updateDay = useMutation({
-    mutationFn: ({ day, title, focus, minutes }: { day: ProgramDay; title: string; focus: string; minutes: number }) => api<EditResult>(`/programs/${day.program_id}/days/${day.id}`, {
+    mutationFn: ({ day, title, focus, scheduledDate, minutes }: { day: ProgramDay; title: string; focus: string; scheduledDate: string | null; minutes: number }) => api<EditResult>(`/programs/${day.program_id}/days/${day.id}`, {
       method: "PATCH",
-      body: JSON.stringify({ title, focus: focus.split(",").map((value) => value.trim()).filter(Boolean), estimated_minutes: minutes }),
+      body: JSON.stringify({ title, focus: focus.split(",").map((value) => value.trim()).filter(Boolean), scheduled_date: scheduledDate, estimated_minutes: minutes }),
     }),
     onSuccess: (result) => { setShowDayEdit(false); finishEdit(result); },
   });
@@ -132,7 +132,7 @@ export default function WorkoutDayPage() {
 
   return <>
     <header className="page-head">
-      <div><Link className="tiny" href="/workouts"><ArrowLeft size={13} style={{ display: "inline" }} /> Program</Link><h1 style={{ marginTop: 12 }}>{day.title}</h1><p>{day.focus.join(" · ") || "Custom workout"} · about {day.estimated_minutes} minutes</p></div>
+      <div><Link className="tiny" href="/workouts"><ArrowLeft size={13} style={{ display: "inline" }} /> Program</Link><h1 style={{ marginTop: 12 }}>{day.title}</h1><p>{day.focus.join(" · ") || "Custom workout"} · about {day.estimated_minutes} minutes</p>{day.scheduled_date && <span className="scheduled-day-label"><CalendarDays size={14} /> {new Date(`${day.scheduled_date}T12:00:00`).toLocaleDateString("en", { weekday: "long", month: "long", day: "numeric" })}</span>}</div>
       <div className="head-actions">
         <Button variant="secondary" onClick={() => { setShowDayEdit((value) => !value); setShowAdd(false); }}><Pencil size={15} /> Edit day</Button>
         <Button variant="secondary" onClick={() => { setShowAdd((value) => !value); setShowDayEdit(false); }}><Plus size={16} /> Add exercise</Button>
@@ -191,13 +191,14 @@ function NumberField({ label, value, min, max, onChange }: { label: string; valu
   return <label className="field"><span>{label}</span><input className="input" type="number" min={min} max={max} value={value ?? ""} onChange={(event) => onChange(event.target.value === "" ? null : Number(event.target.value))} /></label>;
 }
 
-function DayEditor({ day, pending, onClose, onSave }: { day: ProgramDay; pending: boolean; onClose: () => void; onSave: (values: { title: string; focus: string; minutes: number }) => void }) {
+function DayEditor({ day, pending, onClose, onSave }: { day: ProgramDay; pending: boolean; onClose: () => void; onSave: (values: { title: string; focus: string; scheduledDate: string | null; minutes: number }) => void }) {
   const [title, setTitle] = useState(day.title);
   const [focus, setFocus] = useState(day.focus.join(", "));
+  const [scheduledDate, setScheduledDate] = useState(day.scheduled_date ?? "");
   const [minutes, setMinutes] = useState(day.estimated_minutes);
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (title.trim()) onSave({ title: title.trim(), focus, minutes });
+    if (title.trim()) onSave({ title: title.trim(), focus, scheduledDate: scheduledDate || null, minutes });
   }
-  return <Card className="plan-editor-panel"><div className="editor-panel-head"><div><span className="eyebrow">Workout details</span><h2>Edit workout day</h2></div><button className="icon-button" aria-label="Close day editor" onClick={onClose}><X size={17} /></button></div><form className="day-form" onSubmit={submit}><label className="field"><span>Workout name</span><input className="input" required value={title} onChange={(event) => setTitle(event.target.value)} /></label><label className="field"><span>Focus areas</span><input className="input" value={focus} onChange={(event) => setFocus(event.target.value)} /></label><label className="field"><span>Minutes</span><input className="input" type="number" min={15} max={240} value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} /></label><Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save day"}</Button></form></Card>;
+  return <Card className="plan-editor-panel"><div className="editor-panel-head"><div><span className="eyebrow">Workout details</span><h2>Edit workout day</h2></div><button className="icon-button" aria-label="Close day editor" onClick={onClose}><X size={17} /></button></div><form className="day-form" onSubmit={submit}><label className="field"><span>Workout name</span><input className="input" required value={title} onChange={(event) => setTitle(event.target.value)} /></label><label className="field"><span>Focus areas</span><input className="input" value={focus} onChange={(event) => setFocus(event.target.value)} /></label><label className="field"><span>Workout date</span><input className="input" type="date" value={scheduledDate} onChange={(event) => setScheduledDate(event.target.value)} /></label><label className="field"><span>Minutes</span><input className="input" type="number" min={15} max={240} value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} /></label><Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save day"}</Button></form></Card>;
 }

@@ -1,5 +1,5 @@
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -84,6 +84,7 @@ class CompleteWorkoutRequest(BaseModel):
 class ProgramDayRequest(BaseModel):
     title: str = Field(min_length=2, max_length=100)
     focus: list[str] = Field(default_factory=list, max_length=8)
+    scheduled_date: date | None = None
     estimated_minutes: int = Field(default=60, ge=15, le=240)
 
 
@@ -593,6 +594,7 @@ def create_program_day(
         program,
         title=payload.title.strip(),
         focus=[value.strip() for value in payload.focus if value.strip()],
+        scheduled_date=payload.scheduled_date,
         estimated_minutes=payload.estimated_minutes,
     )
     return {"program_id": new_program.id, "day_id": day.id}
@@ -607,13 +609,18 @@ def edit_program_day(
     db: Session = Depends(get_db),
 ):
     program = owned_active_program(db, profile.id, program_id)
-    _editable_day(db, program, day_id)
+    current_day = _editable_day(db, program, day_id)
     new_program, day = update_day(
         db,
         program,
         day_id,
         title=payload.title.strip(),
         focus=[value.strip() for value in payload.focus if value.strip()],
+        scheduled_date=(
+            payload.scheduled_date
+            if "scheduled_date" in payload.model_fields_set
+            else current_day.scheduled_date
+        ),
         estimated_minutes=payload.estimated_minutes,
     )
     return {"program_id": new_program.id, "day_id": day.id}

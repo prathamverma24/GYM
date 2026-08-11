@@ -210,6 +210,7 @@ def add_day(
     *,
     title: str,
     focus: list[str],
+    scheduled_date: date | None,
     estimated_minutes: int,
 ) -> tuple[Program, ProgramDay]:
     new_program, day_map, _ = clone_active_program(db, program, f"added {title}")
@@ -218,7 +219,7 @@ def add_day(
         day_index=len(day_map) + 1,
         title=title,
         focus=focus,
-        scheduled_date=None,
+        scheduled_date=scheduled_date,
         estimated_minutes=estimated_minutes,
     )
     db.add(day)
@@ -233,6 +234,7 @@ def update_day(
     *,
     title: str,
     focus: list[str],
+    scheduled_date: date | None,
     estimated_minutes: int,
 ) -> tuple[Program, ProgramDay]:
     new_program, day_map, _ = clone_active_program(db, program, f"updated {title}")
@@ -241,6 +243,7 @@ def update_day(
         raise DomainError("PROGRAM_DAY_NOT_FOUND", "Training day was not found.", 404)
     day.title = title
     day.focus = focus
+    day.scheduled_date = scheduled_date
     day.estimated_minutes = estimated_minutes
     db.commit()
     return new_program, day
