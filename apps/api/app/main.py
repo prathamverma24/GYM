@@ -36,8 +36,11 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 async def lifespan(_: FastAPI):
     if settings.auto_create_db:
         Base.metadata.create_all(bind=engine)
-    with SessionLocal() as db:
-        seed_catalogues(db)
+        # Local/test environments bootstrap their reference catalogues alongside
+        # the schema. Deployed environments apply migrations and seeds as a
+        # release step, avoiding hundreds of writes on every serverless cold start.
+        with SessionLocal() as db:
+            seed_catalogues(db)
     yield
 
 
