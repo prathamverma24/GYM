@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,6 +19,7 @@ type FormValues = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState("");
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({ resolver: zodResolver(schema) });
@@ -26,7 +28,10 @@ export default function LoginPage() {
     setServerError("");
     try {
       const result = await api<{ user: User }>("/auth/login", { method: "POST", body: JSON.stringify(values) });
+      queryClient.setQueryData(["me"], result);
+      queryClient.removeQueries({ queryKey: ["onboarding"] });
       router.replace(result.user.onboarding_completed ? "/dashboard" : "/onboarding");
+      router.refresh();
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "Unable to sign in.");
     }
@@ -43,4 +48,3 @@ export default function LoginPage() {
     </AuthShell>
   );
 }
-

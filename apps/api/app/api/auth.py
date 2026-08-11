@@ -24,6 +24,11 @@ from app.security import hash_password, new_token, token_digest, verify_password
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def normalize_email(value: str) -> str:
+    """Use one canonical account identifier at registration and sign-in."""
+    return value.strip().casefold()
+
+
 class RegisterRequest(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
     email: EmailStr
@@ -88,7 +93,7 @@ def set_session(db: Session, response: Response, user: User) -> None:
 
 @router.post("/register", status_code=201)
 def register(payload: RegisterRequest, response: Response, request: Request, db: Session = Depends(get_db)):
-    email = payload.email.lower()
+    email = normalize_email(str(payload.email))
     if db.scalar(select(User).where(User.email == email)):
         raise DomainError("EMAIL_UNAVAILABLE", "An account with this email already exists.", 409)
     user = User(email=email, full_name=payload.full_name.strip(), password_hash=hash_password(payload.password))
@@ -114,7 +119,7 @@ def register(payload: RegisterRequest, response: Response, request: Request, db:
 
 @router.post("/login")
 def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
-    user = db.scalar(select(User).where(User.email == payload.email.lower()))
+    user = db.scalar(select(User).where(User.email == normalize_email(str(payload.email))))
     if not user or not verify_password(payload.password, user.password_hash):
         raise DomainError("INVALID_CREDENTIALS", "Email or password is incorrect.", 401)
     profile = db.scalar(select(AthleteProfile).where(AthleteProfile.user_id == user.id))
@@ -148,7 +153,7 @@ def me(user: User = Depends(current_user), db: Session = Depends(get_db)):
 
 @router.post("/forgot-password")
 def forgot_password(payload: ForgotRequest, db: Session = Depends(get_db)):
-    user = db.scalar(select(User).where(User.email == payload.email.lower()))
+    user = db.scalar(select(User).where(User.email == normalize_email(str(payload.email))))
     debug_token = None
     if user:
         token = new_token()
@@ -189,4 +194,3 @@ def reset_password(payload: ResetRequest, db: Session = Depends(get_db)):
         session.revoked_at = utcnow()
     db.commit()
     return {"message": "Password updated. Please sign in again."}
-

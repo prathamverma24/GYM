@@ -108,6 +108,20 @@ def test_exact_mvp_flow_persists_across_login(client: TestClient):
     assert nutrition.json()["meals"][0]["items"][0]["name"] == "Aloo Matar Sabzi"
 
 
+def test_login_uses_the_same_canonical_email_as_registration(client: TestClient):
+    register(client, "Athlete.MixedCase@example.com")
+    assert client.post("/api/v1/auth/logout").status_code == 204
+
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "athlete.mixedcase@EXAMPLE.COM", "password": "StrongPass123"},
+    )
+
+    assert login.status_code == 200
+    assert login.json()["user"]["email"] == "athlete.mixedcase@example.com"
+    assert client.get("/api/v1/auth/me").status_code == 200
+
+
 def test_cross_user_workout_access_is_denied(client: TestClient):
     register(client, "first@example.com")
     complete_onboarding(client)

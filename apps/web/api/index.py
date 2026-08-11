@@ -9,7 +9,13 @@ from urllib.parse import parse_qsl, urlencode
 
 
 def _database_url() -> str:
-    value = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+    value = (
+        os.environ.get("DATABASE_URL")
+        or os.environ.get("POSTGRES_URL")
+        or os.environ.get("POSTGRES_PRISMA_URL")
+        or os.environ.get("POSTGRES_URL_NON_POOLING")
+        or os.environ.get("NEON_DATABASE_URL")
+    )
     if not value:
         # This keeps an unconfigured preview usable for smoke testing. Vercel's
         # /tmp filesystem is ephemeral, so production must configure Postgres.

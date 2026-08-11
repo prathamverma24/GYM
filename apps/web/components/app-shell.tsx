@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, CalendarDays, Dumbbell, LayoutDashboard, LogOut, ScanLine, Settings, SlidersHorizontal, Sparkles, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -29,12 +29,18 @@ function initials(name: string) { return name.split(/\s+/).slice(0, 2).map((part
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const userQuery = useQuery({ queryKey: ["me"], queryFn: () => api<{ user: User }>("/auth/me"), retry: false });
   useEffect(() => {
     if (userQuery.error) router.replace("/login");
     else if (userQuery.data && !userQuery.data.user.onboarding_completed) router.replace("/onboarding");
   }, [userQuery.error, userQuery.data, router]);
-  async function logout() { await api("/auth/logout", { method: "POST" }); router.replace("/login"); }
+  async function logout() {
+    await api("/auth/logout", { method: "POST" });
+    queryClient.clear();
+    router.replace("/login");
+    router.refresh();
+  }
   if (userQuery.isLoading || !userQuery.data) return <main className="auth-page"><LoadingState label="Opening AthleteOS…" /></main>;
   const user = userQuery.data.user;
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);

@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -10,6 +11,7 @@ import { z } from "zod";
 import { Button } from "@/components/primitives";
 import { AuthShell } from "@/features/auth/auth-shell";
 import { api } from "@/lib/api";
+import type { User } from "@/types/api";
 
 const schema = z.object({
   full_name: z.string().min(2, "Enter your full name").max(120),
@@ -22,13 +24,17 @@ type FormValues = z.infer<typeof schema>;
 
 export default function RegisterPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [serverError, setServerError] = useState("");
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({ resolver: zodResolver(schema) });
   const onSubmit = handleSubmit(async (values) => {
     setServerError("");
     try {
-      await api("/auth/register", { method: "POST", body: JSON.stringify(values) });
+      const result = await api<{ user: User }>("/auth/register", { method: "POST", body: JSON.stringify(values) });
+      queryClient.setQueryData(["me"], result);
+      queryClient.removeQueries({ queryKey: ["onboarding"] });
       router.replace("/onboarding");
+      router.refresh();
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "Unable to create your account.");
     }
@@ -48,4 +54,3 @@ export default function RegisterPage() {
     </AuthShell>
   );
 }
-

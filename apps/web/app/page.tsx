@@ -1,19 +1,21 @@
 import {
-  Activity,
   ArrowRight,
   BarChart3,
-  Check,
+  CirclePlay,
   Dumbbell,
-  Flame,
+  Footprints,
   LockKeyhole,
   Salad,
   ScanLine,
   ShieldCheck,
   Sparkles,
   Target,
+  Trophy,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
+import { LandingDashboard } from "@/components/landing-dashboard";
 import { Brand, Button, Card, Eyebrow } from "@/components/primitives";
 
 const features = [
@@ -25,51 +27,79 @@ const features = [
   { icon: Sparkles, title: "Recommendations you can audit", copy: "Performance and recovery evidence comes first. Every suggestion carries a version, confidence, safety checks and plain-language reason." },
 ];
 
+const heroFeatures = [
+  { icon: Target, title: "Personalized workouts", copy: "Plans that adapt to you" },
+  { icon: Salad, title: "Nutrition tracking", copy: "Log meals. Hit goals." },
+  { icon: Trophy, title: "Habit builder", copy: "Stay consistent daily" },
+  { icon: BarChart3, title: "Progress insights", copy: "Data that drives results" },
+  { icon: ScanLine, title: "Body scan", copy: "Visualize your transformation" },
+  { icon: Sparkles, title: "Smart recommendations", copy: "Evidence-led guidance" },
+];
+
 export default function LandingPage() {
   return (
     <main className="marketing">
-      <nav className="marketing-nav" aria-label="Marketing navigation">
-        <Brand />
-        <div className="marketing-links">
-          <a href="#features">Platform</a>
-          <a href="#how">How it works</a>
-          <a href="#privacy">Privacy</a>
-          <Link href="/login">Sign in</Link>
-          <Link href="/register"><Button>Start your journey</Button></Link>
-        </div>
-      </nav>
+      <section className="landing-hero" aria-labelledby="landing-title">
+        <Image
+          alt=""
+          className="landing-hero-bg"
+          fill
+          priority
+          sizes="100vw"
+          src="/assets/landing-hero-bg-v2.png"
+        />
+        <div className="landing-hero-shade" />
 
-      <section className="hero">
-        <div className="hero-copy">
-          <Eyebrow>The athlete operating system</Eyebrow>
-          <h1>Train smarter.<br />Track everything.<br /><span className="gradient-text">Become stronger.</span></h1>
-          <p>A personalized command center for bodybuilding, calisthenics, athletic performance, aesthetics and hybrid training—grounded in what you actually do.</p>
-          <div className="hero-actions">
-            <Link href="/register"><Button>Start your journey <ArrowRight size={17} /></Button></Link>
-            <a href="#features"><Button variant="secondary">Explore AthleteOS</Button></a>
+        <nav className="landing-nav" aria-label="Marketing navigation">
+          <Link className="landing-brand" href="/" aria-label="AthleteOS home">
+            <Image src="/icon.svg" width={42} height={42} alt="" />
+            <span>Athlete<span>OS</span></span>
+          </Link>
+          <div className="landing-nav-links">
+            <a href="#features">Features</a>
+            <a href="#how">How it works</a>
+            <Link href="/register">Pricing</Link>
+            <a href="#how">Testimonials</a>
+            <a href="#privacy">About us</a>
           </div>
-          <div className="hero-trust">
-            <span><ShieldCheck size={15} /> Privacy-first</span>
-            <span><Activity size={15} /> Explainable rules</span>
-            <span><Check size={15} /> Built for mobile</span>
+          <div className="landing-nav-actions">
+            <Link href="/login">Log in</Link>
+            <Link className="landing-nav-cta" href="/register">Start free trial</Link>
           </div>
+        </nav>
+
+        <div className="landing-hero-content">
+          <div className="landing-copy">
+            <span className="landing-kicker">Your fitness. Your data. Your best self.</span>
+            <h1 id="landing-title">
+              Train Smarter.<br />
+              Track Everything.<br />
+              <span>Become Elite.</span>
+            </h1>
+            <p>AthleteOS is your all-in-one fitness operating system. Personalized workouts, nutrition tracking, habit building and advanced progress insights—all in one place.</p>
+            <div className="landing-actions">
+              <Link className="landing-primary-cta" href="/register">Start your journey <ArrowRight size={18} /></Link>
+              <a className="landing-secondary-cta" href="#features">Explore AthleteOS <CirclePlay size={17} /></a>
+            </div>
+            <div className="landing-trust">
+              <span><Target size={18} /> Personalized plans</span>
+              <span><BarChart3 size={18} /> Smart tracking</span>
+              <span><Trophy size={18} /> Real progress</span>
+              <span><ShieldCheck size={18} /> Backed by science</span>
+            </div>
+          </div>
+
+          <LandingDashboard />
         </div>
 
-        <Card className="product-visual" aria-label="AthleteOS dashboard preview">
-          <div className="visual-head"><Brand compact /><span className="pill pill-success"><span className="dot" /> All systems ready</span></div>
-          <div className="visual-metrics">
-            <div className="visual-metric"><span>Weight trend</span><strong>72.5 <small>kg</small></strong></div>
-            <div className="visual-metric"><span>Workout streak</span><strong>22 <small>days</small></strong></div>
-            <div className="visual-metric"><span>Water</span><strong>2.6 <small>/ 3 L</small></strong></div>
-          </div>
-          <div className="visual-grid">
-            <Card className="mini-workout">
-              <Eyebrow>Today&apos;s workout</Eyebrow><h3 style={{ margin: "8px 0 5px" }}>Push Day</h3><p className="tiny">Chest · shoulders · triceps</p>
-              {["Bench Press", "Incline Dumbbell Press", "Shoulder Press", "Triceps Pushdown"].map((exercise, index) => <div className="mini-exercise" key={exercise}><span><i>{index + 1}</i>{exercise}</span><span>{index === 0 ? "4 × 8–10" : "3 × 10–12"}</span></div>)}
-            </Card>
-            <Card className="mini-ring"><Eyebrow>Fuel</Eyebrow><div className="ring"><strong>78%</strong></div><p className="tiny" style={{ textAlign: "center" }}>1,820 / 2,300 kcal</p></Card>
-          </div>
-        </Card>
+        <div className="landing-feature-rail" aria-label="AthleteOS platform highlights">
+          {heroFeatures.map(({ icon: Icon, title, copy }) => (
+            <a href="#features" key={title}>
+              <span className="landing-feature-icon"><Icon size={22} /></span>
+              <span><strong>{title}</strong><small>{copy}</small></span>
+            </a>
+          ))}
+        </div>
       </section>
 
       <section className="marketing-section" id="features">
@@ -95,7 +125,7 @@ export default function LandingPage() {
         </Card>
       </section>
 
-      <footer className="marketing-footer"><Brand /><span>© 2026 AthleteOS · Fitness guidance, not medical advice.</span><span><Flame size={14} style={{ display: "inline", verticalAlign: "middle" }} /> Built for consistent athletes.</span></footer>
+      <footer className="marketing-footer"><Brand /><span>© 2026 AthleteOS · Fitness guidance, not medical advice.</span><span><Footprints size={14} style={{ display: "inline", verticalAlign: "middle" }} /> Built for consistent athletes.</span></footer>
     </main>
   );
 }

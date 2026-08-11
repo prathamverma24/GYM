@@ -1,12 +1,13 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, ArrowLeft, ArrowRight, Camera, Check, Dumbbell, HeartPulse, ShieldCheck, Sparkles, Target } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { Brand, Button, LoadingState } from "@/components/primitives";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
+import type { User } from "@/types/api";
 
 type Profile = {
   date_of_birth: string | null; height_cm: number | null; weight_kg: number | null; unit_system: string; country: string; gender: string | null;
@@ -31,8 +32,9 @@ const equipmentOptions = ["full_gym", "bodyweight", "dumbbells", "barbell", "ben
 
 export function OnboardingWizard() {
   const router = useRouter();
-  const stateQuery = useQuery({ queryKey: ["onboarding"], queryFn: () => api<{ profile: Profile }>("/onboarding") });
-  const userQuery = useQuery({ queryKey: ["me"], queryFn: () => api<{ user: { full_name: string } }>("/auth/me") });
+  const queryClient = useQueryClient();
+  const stateQuery = useQuery({ queryKey: ["onboarding"], queryFn: () => api<{ profile: Profile }>("/onboarding"), retry: false });
+  const userQuery = useQuery({ queryKey: ["me"], queryFn: () => api<{ user: User }>("/auth/me"), retry: false });
   const [step, setStep] = useState(1);
   const [data, setData] = useState<Record<string, unknown>>({
     full_name: "", date_of_birth: "", height_cm: 178, weight_kg: 72.5, gender: "", unit_system: "metric", country: "India", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata",
@@ -46,10 +48,21 @@ export function OnboardingWizard() {
   useEffect(() => {
     const profile = stateQuery.data?.profile;
     if (!profile) return;
-    setStep(profile.onboarding_completed ? 1 : profile.onboarding_step || 1);
+    if (profile.onboarding_completed) {
+      router.replace("/dashboard");
+      return;
+    }
+    setStep(profile.onboarding_step || 1);
     setData((current) => ({ ...current, full_name: userQuery.data?.user.full_name ?? current.full_name, date_of_birth: profile.date_of_birth ?? current.date_of_birth, height_cm: profile.height_cm ?? current.height_cm, weight_kg: profile.weight_kg ?? current.weight_kg, unit_system: profile.unit_system, country: profile.country, gender: profile.gender ?? current.gender, water_target_ml: profile.water_target_ml ?? current.water_target_ml, sleep_hours: profile.sleep_hours ?? current.sleep_hours, activity_level: profile.activity_level ?? current.activity_level, experience_level: profile.experience_level ?? current.experience_level, training_type: profile.training_type ?? current.training_type, primary_goal: profile.primary_goal ?? current.primary_goal, equipment: profile.equipment.length ? profile.equipment : current.equipment, ...profile.schedule }));
   }, [stateQuery.data, userQuery.data, router]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    const queryError = stateQuery.error ?? userQuery.error;
+    if (queryError instanceof ApiError && queryError.status === 401) {
+      router.replace("/login?reason=session-expired");
+    }
+  }, [stateQuery.error, userQuery.error, router]);
 
   const progressLabel = useMemo(() => `${Math.round((step / 9) * 100)}% complete`, [step]);
   function update(key: string, value: unknown) { setData((current) => ({ ...current, [key]: value })); }
@@ -66,13 +79,28 @@ export function OnboardingWizard() {
     };
     const payload = Object.fromEntries(keys[step].filter((key) => data[key] !== "" && data[key] !== undefined).map((key) => [key, data[key]]));
     try {
-      await api("/onboarding", { method: "PUT", body: JSON.stringify({ step, data: payload }) });
-      if (step === 9) router.replace("/dashboard"); else setStep((value) => value + 1);
+      const result = await api<{ profile: Profile }>("/onboarding", { method: "PUT", body: JSON.stringify({ step, data: payload }) });
+      queryClient.setQueryData(["onboarding"], result);
+      if (result.profile.onboarding_completed) {
+        queryClient.setQueryData<{ user: User }>(["me"], (current) => current ? {
+          user: {
+            ...current.user,
+            onboarding_completed: true,
+            onboarding_step: 9,
+            experience_level: result.profile.experience_level,
+          },
+        } : current);
+        await queryClient.invalidateQueries({ queryKey: ["me"], refetchType: "none" });
+        router.replace("/dashboard");
+        router.refresh();
+      } else {
+        setStep(result.profile.onboarding_step || Math.min(9, step + 1));
+      }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save this step."); }
     finally { setSaving(false); }
   }
 
-  if (stateQuery.isLoading) return <main className="auth-page"><LoadingState label="Restoring your setup…" /></main>;
+  if (stateQuery.isLoading || userQuery.isLoading || stateQuery.isError || userQuery.isError) return <main className="auth-page"><LoadingState label="Restoring your secure setup…" /></main>;
   const [title, subtitle] = stepMeta[step - 1];
   return (
     <main className="onboarding-page">
