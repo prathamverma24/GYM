@@ -1,0 +1,2 @@
+AthleteOS database migrations. Run `python -m alembic upgrade head` from apps/api.
+

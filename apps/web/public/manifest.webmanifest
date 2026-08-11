@@ -1,0 +1,11 @@
+{
+  "name": "AthleteOS",
+  "short_name": "AthleteOS",
+  "description": "Your personalized training, nutrition and consistency operating system.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#050713",
+  "theme_color": "#0b1020",
+  "icons": []
+}
+

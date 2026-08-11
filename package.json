@@ -1,0 +1,20 @@
+{
+  "name": "athleteos",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @athleteos/web",
+    "build": "npm run build --workspace @athleteos/web",
+    "lint": "npm run lint --workspace @athleteos/web",
+    "typecheck": "npm run typecheck --workspace @athleteos/web",
+    "test": "npm run test --workspace @athleteos/web",
+    "test:e2e": "npm run test:e2e --workspace @athleteos/web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
