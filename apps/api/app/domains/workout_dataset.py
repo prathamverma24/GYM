@@ -10,7 +10,7 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -174,11 +174,19 @@ def load_workout_dataset() -> dict[str, Any]:
     return json.loads(DATASET_PATH.read_text(encoding="utf-8"))
 
 
-def _upsert(db: Session, model: type, key: str, values: dict[str, Any]):
-    row = db.get(model, key)
+def _upsert(
+    db: Session,
+    model: type,
+    key: str,
+    values: dict[str, Any],
+    existing: dict[str, Any] | None = None,
+):
+    row = existing.get(key) if existing is not None else db.get(model, key)
     if row is None:
         row = model(source_id=key, **values)
         db.add(row)
+        if existing is not None:
+            existing[key] = row
     else:
         for field, value in values.items():
             setattr(row, field, value)
@@ -188,21 +196,41 @@ def _upsert(db: Session, model: type, key: str, values: dict[str, Any]):
 def seed_workout_dataset(db: Session) -> None:
     dataset = load_workout_dataset()
     sheets = dataset["sheets"]
+    counts = dataset["metadata"]["counts"]
+    catalogue_is_current = (
+        db.scalar(
+            select(func.count())
+            .select_from(Exercise)
+            .where(Exercise.source_version == DATASET_VERSION)
+        )
+        == counts["Exercise_Catalog"]
+        and db.scalar(select(func.count()).select_from(WorkoutPrescriptionTemplate))
+        == counts["Day_Exercises"]
+        and db.scalar(select(func.count()).select_from(ResearchSource))
+        == counts["Research_Sources"]
+    )
+    if catalogue_is_current:
+        return
+
     prescriptions_by_exercise: dict[str, list[int]] = defaultdict(list)
     for prescription in sheets["Day_Exercises"]:
         prescriptions_by_exercise[prescription["exercise_id"]].append(int(prescription["sets"]))
 
-    existing_by_slug = {
-        exercise.slug: exercise for exercise in db.scalars(select(Exercise)).all()
+    existing_exercises = db.scalars(select(Exercise)).all()
+    existing_by_slug = {exercise.slug: exercise for exercise in existing_exercises}
+    existing_by_source = {
+        exercise.source_id: exercise for exercise in existing_exercises if exercise.source_id
     }
     for source in sheets["Exercise_Catalog"]:
         slug = _slug(source["name"])
-        exercise = db.scalar(select(Exercise).where(Exercise.source_id == source["exercise_id"]))
+        exercise = existing_by_source.get(source["exercise_id"])
         if exercise is None:
             exercise = existing_by_slug.get(slug)
         if exercise is None:
             exercise = Exercise(name=source["name"], slug=slug)
             db.add(exercise)
+        existing_by_source[source["exercise_id"]] = exercise
+        existing_by_slug[slug] = exercise
         options = equipment_options(source["equipment"])
         metric = str(source["tracking_metric"]).lower()
         observed_sets = prescriptions_by_exercise[source["exercise_id"]]
@@ -240,14 +268,14 @@ def seed_workout_dataset(db: Session) -> None:
         }
         exercise.version = dataset["metadata"]["version"]
         exercise.published = True
-    for legacy in db.scalars(
-        select(Exercise).where(
-            Exercise.source_id.is_(None), Exercise.slug.in_(LEGACY_EXERCISE_SLUGS)
-        )
-    ):
-        legacy.published = False
+    for legacy in existing_exercises:
+        if legacy.source_id is None and legacy.slug in LEGACY_EXERCISE_SLUGS:
+            legacy.published = False
     db.flush()
 
+    progression_rules = {
+        row.source_id: row for row in db.scalars(select(ProgressionRuleDefinition)).all()
+    }
     for source in sheets["Progression_Rules"]:
         _upsert(
             db,
@@ -261,7 +289,11 @@ def seed_workout_dataset(db: Session) -> None:
                 "regression": source["regression"],
                 "notes": source["notes"],
             },
+            progression_rules,
         )
+    substitution_groups = {
+        row.source_id: row for row in db.scalars(select(ExerciseSubstitutionGroup)).all()
+    }
     for source in sheets["Substitutions"]:
         _upsert(
             db,
@@ -273,7 +305,11 @@ def seed_workout_dataset(db: Session) -> None:
                 "alternatives": _items(source["alternatives"]),
                 "logic": source["logic"],
             },
+            substitution_groups,
         )
+    split_templates = {
+        row.source_id: row for row in db.scalars(select(WorkoutSplitTemplate)).all()
+    }
     for source in sheets["Split_Templates"]:
         _upsert(
             db,
@@ -301,8 +337,12 @@ def seed_workout_dataset(db: Session) -> None:
                 "description": source["description"],
                 "source_version": DATASET_VERSION,
             },
+            split_templates,
         )
     db.flush()
+    day_templates = {
+        row.source_id: row for row in db.scalars(select(WorkoutDayTemplate)).all()
+    }
     for source in sheets["Program_Days"]:
         _upsert(
             db,
@@ -317,8 +357,13 @@ def seed_workout_dataset(db: Session) -> None:
                 "recommended_after_day": source["recommended_after_day"],
                 "is_optional": bool(source["is_optional"]),
             },
+            day_templates,
         )
     db.flush()
+    prescription_templates = {
+        row.source_id: row
+        for row in db.scalars(select(WorkoutPrescriptionTemplate)).all()
+    }
     for source in sheets["Day_Exercises"]:
         _upsert(
             db,
@@ -339,7 +384,11 @@ def seed_workout_dataset(db: Session) -> None:
                 "is_optional": bool(source["optional"]),
                 "notes": source["notes"],
             },
+            prescription_templates,
         )
+    selection_rules = {
+        row.source_id: row for row in db.scalars(select(ProgramSelectionRule)).all()
+    }
     for source in sheets["Selection_Rules"]:
         _upsert(
             db,
@@ -356,7 +405,11 @@ def seed_workout_dataset(db: Session) -> None:
                 "priority": int(source["priority"]),
                 "reason": source["reason"],
             },
+            selection_rules,
         )
+    research_sources = {
+        row.source_id: row for row in db.scalars(select(ResearchSource)).all()
+    }
     for source in sheets["Research_Sources"]:
         _upsert(
             db,
@@ -368,5 +421,6 @@ def seed_workout_dataset(db: Session) -> None:
                 "url": source["url"],
                 "accessed": date.fromisoformat(source["accessed"]),
             },
+            research_sources,
         )
     db.commit()

@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.domains.workout_dataset import seed_workout_dataset
-from app.models import Food, FoodAlias, ServingOption
+from app.models import Food, FoodAlias, ServingOption, new_id
 
 
 def normalize_text(value: str) -> str:
@@ -125,6 +125,7 @@ def seed_catalogues(db: Session) -> None:
     if not db.scalar(select(func.count()).select_from(Food)):
         for name, kcal, protein, carbs, fat, serving_label, grams, aliases in FOODS:
             food = Food(
+                id=new_id(),
                 canonical_name=name,
                 normalized_name=normalize_text(name),
                 cuisine="indian" if len(aliases) or name in {"Poha", "Upma", "Idli", "Dosa", "Uttapam", "Sambar"} else "global",
@@ -137,7 +138,6 @@ def seed_catalogues(db: Session) -> None:
                 data_quality="estimated" if name not in {"Banana", "Apple", "Oats", "Milk", "Almonds", "Walnuts"} else "curated",
             )
             db.add(food)
-            db.flush()
             db.add(ServingOption(food_id=food.id, label=serving_label, grams=grams, is_default=True))
             for alias in aliases:
                 db.add(
