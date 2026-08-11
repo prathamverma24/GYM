@@ -2,6 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 
 const API_URL = process.env.API_URL ?? "http://localhost:8000/api/v1";
 
+test.use({ timezoneId: "Asia/Kolkata" });
+
 function captureClientErrors(page: Page) {
   const errors: string[] = [];
   page.on("console", (message) => {
