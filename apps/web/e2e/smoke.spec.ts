@@ -23,7 +23,7 @@ test("landing page renders cleanly at desktop and mobile sizes", async ({ page }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   await expect(page.getByRole("heading", { name: /Train smarter/i })).toBeVisible();
-  await expect(page.getByText("Built for mobile")).toBeVisible();
+  await expect(page.getByText("Built for consistent athletes.")).toBeVisible();
   await page.screenshot({ path: "test-results/landing-mobile.png", fullPage: true });
 
   expect(clientErrors).toEqual([]);

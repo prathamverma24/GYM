@@ -111,6 +111,85 @@ export type WorkoutSession = {
   sets: SetLog[];
 };
 
+export type StrengthPeriod = "week" | "month" | "3_months";
+export type StrengthConfidence = "insufficient" | "low" | "medium" | "high";
+
+export type ExercisePerformance = {
+  id: string;
+  name: string;
+  contribution: number;
+  sets: number;
+  volume: number;
+  best: number | null;
+  best_e1rm: number | null;
+  previous_best: number | null;
+  change_percent: number | null;
+  best_set: { date: string; load_kg: number | null; reps: number | null; seconds: number | null; rir: number | null; performance: number | null } | null;
+  recent: Array<{ date: string; load_kg: number | null; reps: number | null; seconds: number | null; rir: number | null; performance: number | null }>;
+};
+
+export type MusclePerformance = {
+  id: string;
+  slug: string;
+  name: string;
+  body_region: "upper" | "core" | "lower";
+  score: number | null;
+  previous_score: number | null;
+  change_percent: number | null;
+  performance_change_percent: number | null;
+  status: string;
+  confidence: StrengthConfidence;
+  sessions: number;
+  working_sets: number;
+  training_volume_kg: number;
+  exercise_diversity: number;
+  top_exercise: ExercisePerformance | null;
+  exercises: ExercisePerformance[];
+};
+
+export type StrengthAnalysis = {
+  analytics_version: string;
+  period: { type: StrengthPeriod; start: string; end: string; expected_end: string; partial: boolean; comparison_start: string; comparison_end: string; timezone: string };
+  profile_state: "empty" | "building" | "ready";
+  sessions_recorded: number;
+  unlock_target_sessions: number;
+  overall: { score: number | null; previous_score: number | null; change_percent: number | null; confidence: StrengthConfidence };
+  strongest: { muscle_id: string; muscle: string; score: number } | null;
+  most_improved: { muscle_id: string; muscle: string; change_percent: number } | null;
+  needs_attention: { muscle_id: string; muscle: string; score: number } | null;
+  muscles: MusclePerformance[];
+  balance: Array<{
+    name: string;
+    left_label: string;
+    right_label: string;
+    left: { score: number | null; working_sets: number; sessions: number; confidence: StrengthConfidence };
+    right: { score: number | null; working_sets: number; sessions: number; confidence: StrengthConfidence };
+    difference_percent: number | null;
+    insight: string;
+  }>;
+  trend: Array<{ date: string; overall: number | null; [muscle: string]: string | number | null }>;
+  recommendations: Array<{ muscle: string | null; action: string; reason: string; confidence: StrengthConfidence }>;
+  methodology_note: string;
+};
+
+export type StrengthReport = {
+  id: string;
+  period_type: StrengthPeriod;
+  period_start: string;
+  period_end: string;
+  overall_score: number | null;
+  generated_at: string;
+  analytics_version: string;
+  report: {
+    title: string;
+    analysis: StrengthAnalysis;
+    training_summary: { sessions: number; sessions_started: number; working_sets: number; training_volume_kg: number; workout_completion_percent: number };
+    recovery: { average_sleep_hours: number | null; average_readiness: number | null; check_ins: number };
+    recommendations: StrengthAnalysis["recommendations"];
+    generated_for: string;
+  };
+};
+
 export type Food = {
   id: string;
   canonical_name: string;

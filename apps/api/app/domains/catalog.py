@@ -4,6 +4,7 @@ import unicodedata
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.domains.strength_catalog import seed_strength_catalogue
 from app.domains.workout_dataset import seed_workout_dataset
 from app.models import Food, FoodAlias, ServingOption, new_id
 
@@ -121,6 +122,7 @@ FOODS = [
 
 def seed_catalogues(db: Session) -> None:
     seed_workout_dataset(db)
+    seed_strength_catalogue(db)
 
     if not db.scalar(select(func.count()).select_from(Food)):
         for name, kcal, protein, carbs, fat, serving_label, grams, aliases in FOODS:

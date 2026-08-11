@@ -167,6 +167,50 @@ class Exercise(Base, TimestampMixin):
     published: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class MuscleGroup(Base):
+    __tablename__ = "muscle_groups"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(80), unique=True)
+    slug: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    body_region: Mapped[str] = mapped_column(String(32))
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class ExerciseMuscleMapping(Base):
+    __tablename__ = "exercise_muscle_mappings"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    exercise_id: Mapped[str] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), index=True
+    )
+    muscle_group_id: Mapped[str] = mapped_column(
+        ForeignKey("muscle_groups.id", ondelete="CASCADE"), index=True
+    )
+    role: Mapped[str] = mapped_column(String(16))
+    contribution_weight: Mapped[float] = mapped_column(Float)
+    __table_args__ = (
+        UniqueConstraint(
+            "exercise_id", "muscle_group_id", name="uq_exercise_muscle_mapping"
+        ),
+    )
+
+
+class ExerciseProgression(Base):
+    __tablename__ = "exercise_progressions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    exercise_id: Mapped[str] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    progression_group: Mapped[str] = mapped_column(String(80), index=True)
+    level: Mapped[float] = mapped_column(Float)
+    previous_exercise_id: Mapped[str | None] = mapped_column(
+        ForeignKey("exercises.id", ondelete="SET NULL"), nullable=True
+    )
+    next_exercise_id: Mapped[str | None] = mapped_column(
+        ForeignKey("exercises.id", ondelete="SET NULL"), nullable=True
+    )
+    difficulty_multiplier: Mapped[float] = mapped_column(Float, default=1.0)
+
+
 class WorkoutSplitTemplate(Base):
     __tablename__ = "workout_split_templates"
     source_id: Mapped[str] = mapped_column(String(16), primary_key=True)
@@ -359,6 +403,21 @@ class PersonalRecord(Base):
     record_type: Mapped[str] = mapped_column(String(32))
     value: Mapped[float] = mapped_column(Float)
     achieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class StrengthReport(Base):
+    __tablename__ = "strength_reports"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    period_type: Mapped[str] = mapped_column(String(24), index=True)
+    period_start: Mapped[date] = mapped_column(Date, index=True)
+    period_end: Mapped[date] = mapped_column(Date)
+    overall_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    report_json: Mapped[dict] = mapped_column(JSON)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    analytics_version: Mapped[str] = mapped_column(String(32), default="strength_v1")
 
 
 class RecommendationDecision(Base):

@@ -20,6 +20,7 @@ from app.api import (
     nutrition,
     privacy,
     recommendations,
+    strength,
     training,
 )
 from app.config import settings
@@ -132,6 +133,7 @@ for router in (
     nutrition.router,
     habits.router,
     analytics.router,
+    strength.router,
     cv.router,
     recommendations.router,
     privacy.router,
