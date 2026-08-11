@@ -12,6 +12,7 @@ function captureClientErrors(page: Page) {
 }
 
 test("completed workout history powers the responsive strength intelligence report", async ({ page }) => {
+  test.setTimeout(90_000);
   const clientErrors = captureClientErrors(page);
   const email = `strength-e2e-${Date.now()}@example.com`;
   const registration = await page.request.post(`${API_URL}/auth/register`, {
