@@ -66,6 +66,7 @@ test("completed workout history powers the responsive strength intelligence repo
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/progress");
   await expect(page.getByRole("heading", { name: "Progress & Strength Intelligence", exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recorded Strength Profile", exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("Body strength map", { exact: false }).first()).toBeVisible();
   await expect(page.getByText("Not Enough Data", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: /Chest:/ }).first().click();
@@ -79,6 +80,7 @@ test("completed workout history powers the responsive strength intelligence repo
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   await expect(page.getByRole("heading", { name: "Progress & Strength Intelligence", exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recorded Strength Profile", exact: true })).toBeVisible({ timeout: 30_000 });
   const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(hasHorizontalOverflow).toBe(false);
   await page.screenshot({ path: "test-results/strength-progress-mobile.png", fullPage: true });
