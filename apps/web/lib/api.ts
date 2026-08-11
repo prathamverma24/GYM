@@ -1,6 +1,13 @@
 import type { ApiErrorPayload } from "@/types/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+function resolveApiUrl() {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  const pointsToLocalhost = configured && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(configured);
+  if (process.env.NODE_ENV === "production" && (!configured || pointsToLocalhost)) return "/api/v1";
+  return configured ?? "http://localhost:8000/api/v1";
+}
+
+const API_URL = resolveApiUrl();
 
 export class ApiError extends Error {
   status: number;
@@ -17,14 +24,22 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...init?.headers,
+      },
+    });
+  } catch {
+    throw new ApiError(503, {
+      code: "API_UNAVAILABLE",
+      message: "AthleteOS could not reach the API. Please try again in a moment.",
+    });
+  }
   if (response.status === 204) return undefined as T;
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -42,4 +57,3 @@ export function formatNumber(value: number | null | undefined, maximumFractionDi
   if (value == null) return "—";
   return new Intl.NumberFormat("en-IN", { maximumFractionDigits }).format(value);
 }
-

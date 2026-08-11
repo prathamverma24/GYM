@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    if settings.auto_create_db and settings.app_env in {"development", "test"}:
+    if settings.auto_create_db:
         Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         seed_catalogues(db)
@@ -138,4 +138,3 @@ for router in (
     admin.router,
 ):
     app.include_router(router, prefix=settings.api_prefix)
-
