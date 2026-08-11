@@ -6,9 +6,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import type { User } from "@/types/api";
-import { Brand, LoadingState } from "./primitives";
+import { Brand, ErrorState, LoadingState } from "./primitives";
 
 const navigation = [
   ["/dashboard", "Dashboard", LayoutDashboard],
@@ -32,16 +32,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const userQuery = useQuery({ queryKey: ["me"], queryFn: () => api<{ user: User }>("/auth/me"), retry: false });
   useEffect(() => {
-    if (userQuery.error) router.replace("/login");
+    if (userQuery.error instanceof ApiError && userQuery.error.status === 401) {
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    }
     else if (userQuery.data && !userQuery.data.user.onboarding_completed) router.replace("/onboarding");
-  }, [userQuery.error, userQuery.data, router]);
+  }, [userQuery.error, userQuery.data, pathname, router]);
   async function logout() {
     await api("/auth/logout", { method: "POST" });
     queryClient.clear();
     router.replace("/login");
     router.refresh();
   }
-  if (userQuery.isLoading || !userQuery.data) return <main className="auth-page"><LoadingState label="Opening AthleteOS…" /></main>;
+  if (userQuery.isLoading || (userQuery.error instanceof ApiError && userQuery.error.status === 401)) {
+    return <main className="auth-page"><LoadingState label="Opening AthleteOS…" /></main>;
+  }
+  if (userQuery.isError) {
+    return <main className="auth-page"><ErrorState message={userQuery.error.message} onRetry={() => userQuery.refetch()} /></main>;
+  }
+  if (!userQuery.data) return <main className="auth-page"><LoadingState label="Opening AthleteOS…" /></main>;
   const user = userQuery.data.user;
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   return (

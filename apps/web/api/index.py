@@ -10,7 +10,8 @@ from urllib.parse import parse_qsl, urlencode
 
 def _database_url() -> str:
     value = (
-        os.environ.get("DATABASE_URL")
+        os.environ.get("TURSO_DATABASE_URL")
+        or os.environ.get("DATABASE_URL")
         or os.environ.get("POSTGRES_URL")
         or os.environ.get("POSTGRES_PRISMA_URL")
         or os.environ.get("POSTGRES_URL_NON_POOLING")

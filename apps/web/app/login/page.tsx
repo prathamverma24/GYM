@@ -30,7 +30,9 @@ export default function LoginPage() {
       const result = await api<{ user: User }>("/auth/login", { method: "POST", body: JSON.stringify(values) });
       queryClient.setQueryData(["me"], result);
       queryClient.removeQueries({ queryKey: ["onboarding"] });
-      router.replace(result.user.onboarding_completed ? "/dashboard" : "/onboarding");
+      const requestedPath = new URLSearchParams(window.location.search).get("next");
+      const safePath = requestedPath?.startsWith("/") && !requestedPath.startsWith("//") ? requestedPath : null;
+      router.replace(result.user.onboarding_completed ? (safePath ?? "/dashboard") : "/onboarding");
       router.refresh();
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "Unable to sign in.");
