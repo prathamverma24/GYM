@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.nutrition import nutrition_day_payload
 from app.db import get_db
 from app.dependencies import current_profile, current_user
-from app.domains.habits import calculate_streak
+from app.domains.habits import calculate_streak, is_scheduled
 from app.models import (
     AthleteProfile,
     BodyMetricEntry,
@@ -110,42 +110,91 @@ def dashboard_today(
     }
 
 
-def _range_report(db: Session, profile: AthleteProfile, start: date, end: date) -> dict:
+def _range_report(
+    db: Session,
+    profile: AthleteProfile,
+    start: date,
+    end: date,
+    through: date | None = None,
+) -> dict:
+    report_through = min(end, through or date.today())
+    has_elapsed_days = report_through >= start
     start_dt = datetime.combine(start, datetime.min.time(), tzinfo=timezone.utc)
-    end_dt = datetime.combine(end + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+    end_dt = datetime.combine(
+        (report_through + timedelta(days=1)) if has_elapsed_days else start,
+        datetime.min.time(),
+        tzinfo=timezone.utc,
+    )
     sessions = db.scalars(select(WorkoutSession).where(WorkoutSession.athlete_id == profile.id, WorkoutSession.started_at >= start_dt, WorkoutSession.started_at < end_dt)).all()
     completed_sessions = [session for session in sessions if session.status == "completed"]
     session_ids = [session.id for session in completed_sessions]
     sets = db.scalars(select(SetLog).where(SetLog.workout_session_id.in_(session_ids))) .all() if session_ids else []
     metrics = db.scalars(select(BodyMetricEntry).where(BodyMetricEntry.athlete_id == profile.id, BodyMetricEntry.measured_at >= start_dt, BodyMetricEntry.measured_at < end_dt).order_by(BodyMetricEntry.measured_at)).all()
-    habits = db.scalars(select(Habit).where(Habit.athlete_id == profile.id)).all()
-    completions = db.scalars(select(HabitCompletion).where(HabitCompletion.athlete_id == profile.id, HabitCompletion.local_date >= start, HabitCompletion.local_date <= end, HabitCompletion.completed.is_(True))).all()
-    days = (end - start).days + 1
-    expected = sum(1 for _habit in habits for _day in range(days)) or 1
+    habits = db.scalars(
+        select(Habit).where(Habit.athlete_id == profile.id, Habit.active.is_(True))
+    ).all()
+    completions = (
+        db.scalars(
+            select(HabitCompletion).where(
+                HabitCompletion.athlete_id == profile.id,
+                HabitCompletion.local_date >= start,
+                HabitCompletion.local_date <= report_through,
+                HabitCompletion.completed.is_(True),
+            )
+        ).all()
+        if has_elapsed_days
+        else []
+    )
+    habits_by_id = {habit.id: habit for habit in habits}
+    scheduled_completions = [
+        completion
+        for completion in completions
+        if (habit := habits_by_id.get(completion.habit_id))
+        and is_scheduled(habit, completion.local_date)
+    ]
+    expected = 0
+    if has_elapsed_days:
+        for offset in range((report_through - start).days + 1):
+            local_day = start + timedelta(days=offset)
+            expected += sum(1 for habit in habits if is_scheduled(habit, local_day))
     return {
         "period": {"from": start, "to": end},
         "training": {"sessions_started": len(sessions), "sessions_completed": len(completed_sessions), "sets_completed": sum(1 for row in sets if row.completed), "volume_kg": round(sum((row.load_kg or 0) * (row.reps or 0) for row in sets if row.completed), 1)},
         "body": {"weight_series": [{"date": row.measured_at.date(), "value": row.weight_kg} for row in metrics if row.weight_kg is not None], "weight_change_kg": round((next((row.weight_kg for row in reversed(metrics) if row.weight_kg is not None), 0) or 0) - (next((row.weight_kg for row in metrics if row.weight_kg is not None), 0) or 0), 2) if metrics else None},
-        "habits": {"completions": len(completions), "completion_rate": round(len(completions) / expected * 100, 1)},
+        "habits": {
+            "completions": len(scheduled_completions),
+            "completion_rate": (
+                round(len(scheduled_completions) / expected * 100, 1) if expected else 0
+            ),
+        },
         "data_note": "Missing dates remain missing; they are not treated as zero measurements.",
     }
 
 
 @router.get("/reports/weekly")
-def weekly_report(week_of: date | None = Query(default=None), profile: AthleteProfile = Depends(current_profile), db: Session = Depends(get_db)):
-    anchor = week_of or date.today()
+def weekly_report(
+    week_of: date | None = Query(default=None),
+    through: date | None = Query(default=None),
+    profile: AthleteProfile = Depends(current_profile),
+    db: Session = Depends(get_db),
+):
+    anchor = week_of or through or date.today()
     start = anchor - timedelta(days=anchor.weekday())
-    return _range_report(db, profile, start, start + timedelta(days=6))
+    return _range_report(db, profile, start, start + timedelta(days=6), through)
 
 
 @router.get("/reports/monthly")
-def monthly_report(month: str | None = None, profile: AthleteProfile = Depends(current_profile), db: Session = Depends(get_db)):
+def monthly_report(
+    month: str | None = None,
+    through: date | None = Query(default=None),
+    profile: AthleteProfile = Depends(current_profile),
+    db: Session = Depends(get_db),
+):
     if month:
         year, month_number = [int(part) for part in month.split("-", 1)]
         start = date(year, month_number, 1)
     else:
-        today = date.today()
+        today = through or date.today()
         start = today.replace(day=1)
     next_month = date(start.year + (1 if start.month == 12 else 0), 1 if start.month == 12 else start.month + 1, 1)
-    return _range_report(db, profile, start, next_month - timedelta(days=1))
-
+    return _range_report(db, profile, start, next_month - timedelta(days=1), through)
