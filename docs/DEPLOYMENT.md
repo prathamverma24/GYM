@@ -6,7 +6,7 @@ Before production: replace all secrets, enable secure cookies, set an exact CORS
 
 ## Vercel
 
-Set the Vercel project's Root Directory to `apps/web`. The project contains a Python function at `api/index.py`, so browser requests use the same-origin `/api/v1` path and do not depend on `localhost` or cross-site cookies.
+Set the Vercel project's Root Directory to `apps/web`. The project contains a Python function at `api/index.py`; `vercel.json` forwards the `/api/v1` route tree to that function. Browser requests therefore use the same-origin `/api/v1` path and do not depend on `localhost` or cross-site cookies.
 
 The deployable backend wheel is stored in `apps/web/vendor`. Vercel's Python builder installs the immutable GitHub copy referenced by `apps/web/requirements.txt`, avoiding incorrect double-resolution of local requirement paths. After backend changes, rebuild the wheel, commit it, and update that URL to the commit containing the new wheel:
 

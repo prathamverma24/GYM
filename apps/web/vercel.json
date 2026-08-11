@@ -4,6 +4,15 @@
     "api/index.py": {
       "maxDuration": 60
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api/v1",
+      "destination": "/api?__athleteos_path=/api/v1"
+    },
+    {
+      "source": "/api/v1/:path*",
+      "destination": "/api?__athleteos_path=/api/v1/:path*"
+    }
+  ]
 }
-

@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode
 
 
 def _database_url() -> str:
@@ -33,4 +34,31 @@ if backend_root.exists():
 
 from app.main import app as athleteos_app
 
-app = athleteos_app
+
+class RewrittenPathApp:
+    """Restore the API path forwarded to Vercel's single Python function."""
+
+    def __init__(self, application):
+        self.application = application
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            query = parse_qsl(scope.get("query_string", b"").decode(), keep_blank_values=True)
+            forwarded_path = next(
+                (value for key, value in query if key == "__athleteos_path"),
+                None,
+            )
+            if forwarded_path and (
+                forwarded_path == "/api/v1" or forwarded_path.startswith("/api/v1/")
+            ):
+                scope = dict(scope)
+                scope["path"] = forwarded_path
+                scope["raw_path"] = forwarded_path.encode()
+                scope["query_string"] = urlencode(
+                    [(key, value) for key, value in query if key != "__athleteos_path"],
+                    doseq=True,
+                ).encode()
+        await self.application(scope, receive, send)
+
+
+app = RewrittenPathApp(athleteos_app)
