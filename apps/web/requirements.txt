@@ -1,1 +1,1 @@
-athleteos-api @ https://raw.githubusercontent.com/prathamverma24/GYM/d5a12c34476e3210089e8002bef9626764ce92cf/apps/web/vendor/athleteos_api-0.1.0-py3-none-any.whl
+athleteos-api @ https://raw.githubusercontent.com/prathamverma24/GYM/b3ef769111de29ac29d24fd3e92140843ce66e34/apps/web/vendor/athleteos_api-0.1.0-py3-none-any.whl
